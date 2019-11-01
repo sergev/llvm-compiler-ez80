@@ -178,6 +178,12 @@ ASM_FUNCTION_CSKY_RE = re.compile(
     r'.Lfunc_end[0-9]+:\n',
     flags=(re.M | re.S))
 
+ASM_FUNCTION_Z80_RE = re.compile(
+     r'^_(?P<func>[^:]+):\s*;+\s*@(?P=func)\n'
+     r'(?P<body>.*?)\n'
+     r'^\s*;\s--\sEnd\sfunction',
+     flags=(re.M | re.S))
+
 SCRUB_X86_SHUFFLES_RE = (
     re.compile(
         r'^(\s*\w+) [^#\n]+#+ ((?:[xyz]mm\d+|mem)( \{%k\d+\}( \{z\})?)? = .*)$',
@@ -388,6 +394,16 @@ def scrub_asm_csky(asm, args):
   asm = common.SCRUB_TRAILING_WHITESPACE_RE.sub(r'', asm)
   return asm
 
+def scrub_asm_z80(asm, args):
+  # Scrub runs of whitespace out of the assembly, but leave the leading
+  # whitespace in place.
+  asm = common.SCRUB_WHITESPACE_RE.sub(r' ', asm)
+  # Expand the tabs used for indentation.
+  asm = string.expandtabs(asm, 2)
+  # Strip trailing whitespace.
+  asm = common.SCRUB_TRAILING_WHITESPACE_RE.sub(r'', asm)
+  return asm
+
 def get_triple_from_march(march):
   triples = {
       'amdgcn': 'amdgcn',
@@ -441,6 +457,8 @@ def get_run_handler(triple):
       'wasm32': (scrub_asm_wasm32, ASM_FUNCTION_WASM32_RE),
       've': (scrub_asm_ve, ASM_FUNCTION_VE_RE),
       'csky': (scrub_asm_csky, ASM_FUNCTION_CSKY_RE),
+      'z80': (scrub_asm_z80, ASM_FUNCTION_Z80_RE),
+      'ez80': (scrub_asm_z80, ASM_FUNCTION_Z80_RE),
   }
   handler = None
   best_prefix = ''
