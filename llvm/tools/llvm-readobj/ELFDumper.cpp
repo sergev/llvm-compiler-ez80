@@ -1204,6 +1204,7 @@ const EnumEntry<unsigned> ElfMachineType[] = {
   ENUM_ENT(EM_LANAI,         "EM_LANAI"),
   ENUM_ENT(EM_BPF,           "EM_BPF"),
   ENUM_ENT(EM_VE,            "NEC SX-Aurora Vector Engine"),
+  ENUM_ENT(EM_Z80,           "Zilog Z80"),
 };
 
 const EnumEntry<unsigned> ElfSymbolBindings[] = {
@@ -1609,6 +1610,10 @@ const EnumEntry<unsigned> ElfHeaderAVRFlags[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AVR_ARCH_XMEGA6),
   LLVM_READOBJ_ENUM_ENT(ELF, EF_AVR_ARCH_XMEGA7),
   ENUM_ENT(EF_AVR_LINKRELAX_PREPARED, "relaxable"),
+};
+
+static const EnumEntry<unsigned> ElfHeaderZ80Flags[] = {
+  ENUM_ENT(EF_Z80_EZ80, "eZ80")
 };
 
 
@@ -3319,6 +3324,8 @@ template <class ELFT> void GNUELFDumper<ELFT>::printFileHeaders() {
   else if (e.e_machine == EM_AVR)
     ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderAVRFlags),
                           unsigned(ELF::EF_AVR_ARCH_MASK));
+  else if (e.e_machine == EM_Z80)
+    ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderZ80Flags));
   Str = "0x" + to_hexString(e.e_flags);
   if (!ElfFlags.empty())
     Str = Str + ", " + ElfFlags;
@@ -6405,6 +6412,8 @@ template <class ELFT> void LLVMELFDumper<ELFT>::printFileHeaders() {
     else if (E.e_machine == EM_AVR)
       W.printFlags("Flags", E.e_flags, makeArrayRef(ElfHeaderAVRFlags),
                    unsigned(ELF::EF_AVR_ARCH_MASK));
+    else if (E.e_machine == EM_Z80)
+      W.printFlags("Flags", E.e_flags, makeArrayRef(ElfHeaderZ80Flags));
     else
       W.printFlags("Flags", E.e_flags);
     W.printNumber("HeaderSize", E.e_ehsize);
