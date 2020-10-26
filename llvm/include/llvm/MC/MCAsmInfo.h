@@ -487,6 +487,10 @@ protected:
   /// false.
   bool SupportsDebugInformation = false;
 
+  /// True if target supports emission of CFI debugging information.  Defaults
+  /// to false.
+  bool SupportsCFI = false;
+
   /// Exception handling format for the target.  Defaults to None.
   ExceptionHandling ExceptionsType = ExceptionHandling::None;
 
@@ -530,6 +534,9 @@ protected:
 
   /// Dwarf ".loc" directive.
   const char *DwarfLocDirective = nullptr;
+
+  /// Dwarf ".cfi_" directive prefix.
+  const char *DwarfCFIDirectivePrefix = nullptr;
 
   //===--- Prologue State ----------------------------------------------===//
 
@@ -846,7 +853,7 @@ public:
   /// Returns true if the exception handling method for the platform uses call
   /// frame information to unwind.
   bool usesCFIForEH() const {
-    return (ExceptionsType == ExceptionHandling::DwarfCFI ||
+    return (SupportsCFI || ExceptionsType == ExceptionHandling::DwarfCFI ||
             ExceptionsType == ExceptionHandling::ARM || usesWindowsCFI());
   }
 
@@ -868,6 +875,9 @@ public:
   }
   const char *getDwarfFileDirective() const { return DwarfFileDirective; }
   const char *getDwarfLocDirective() const { return DwarfLocDirective; }
+  const char *getDwarfCFIDirectivePrefix() const {
+    return DwarfCFIDirectivePrefix;
+  }
 
   bool usesDwarfFileAndLocDirectives() const {
     return UsesDwarfFileAndLocDirectives;

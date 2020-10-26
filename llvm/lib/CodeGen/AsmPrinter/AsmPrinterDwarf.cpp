@@ -252,6 +252,9 @@ void AsmPrinter::emitCFIInstruction(const MCCFIInstruction &Inst) const {
   case MCCFIInstruction::OpOffset:
     OutStreamer->emitCFIOffset(Inst.getRegister(), Inst.getOffset());
     break;
+  case MCCFIInstruction::OpValOffset:
+    OutStreamer->emitCFIValOffset(Inst.getRegister(), Inst.getOffset());
+    break;
   case MCCFIInstruction::OpRegister:
     OutStreamer->emitCFIRegister(Inst.getRegister(), Inst.getRegister2());
     break;

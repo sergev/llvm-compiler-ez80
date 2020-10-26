@@ -1090,10 +1090,7 @@ bool AsmPrinter::needsCFIForDebug() const {
 }
 
 void AsmPrinter::emitCFIInstruction(const MachineInstr &MI) {
-  ExceptionHandling ExceptionHandlingType = MAI->getExceptionHandlingType();
-  if (!needsCFIForDebug() &&
-      ExceptionHandlingType != ExceptionHandling::DwarfCFI &&
-      ExceptionHandlingType != ExceptionHandling::ARM)
+  if (!needsCFIForDebug() && !MAI->usesCFIForEH())
     return;
 
   if (getFunctionCFISectionType(*MF) == CFISection::None)
