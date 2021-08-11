@@ -4227,8 +4227,8 @@ LegalizerHelper::reduceLoadStoreWidth(GLoadStore &LdStMI, unsigned TypeIdx,
 
       MIRBuilder.materializePtrAdd(NewAddrReg, AddrReg, OffsetTy, ByteOffset);
 
-      MachineMemOperand *NewMMO =
-          MF.getMachineMemOperand(&MMO, ByteOffset, PartTy);
+            MachineMemOperand *NewMMO =
+                MF.getMachineMemOperand(&MMO, ByteOffset, PartTy);
 
       if (IsLoad) {
         Register Dst = MRI.createGenericVirtualRegister(PartTy);
