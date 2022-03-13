@@ -526,21 +526,29 @@ Optional<APInt> llvm::ConstantFoldBinOp(unsigned Opcode, const Register Op1,
   case TargetOpcode::G_XOR:
     return C1 ^ C2;
   case TargetOpcode::G_UDIV:
-    if (!C2.getBoolValue())
+    if (C2.isZero())
       break;
     return C1.udiv(C2);
   case TargetOpcode::G_SDIV:
-    if (!C2.getBoolValue())
+    if (C2.isZero())
       break;
     return C1.sdiv(C2);
   case TargetOpcode::G_UREM:
-    if (!C2.getBoolValue())
+    if (C2.isZero())
       break;
     return C1.urem(C2);
   case TargetOpcode::G_SREM:
-    if (!C2.getBoolValue())
+    if (C2.isZero())
       break;
     return C1.srem(C2);
+  case TargetOpcode::G_SMIN:
+    return APIntOps::smin(C1, C2);
+  case TargetOpcode::G_SMAX:
+    return APIntOps::smax(C1, C2);
+  case TargetOpcode::G_UMIN:
+    return APIntOps::umin(C1, C2);
+  case TargetOpcode::G_UMAX:
+    return APIntOps::umax(C1, C2);
   }
 
   return None;
