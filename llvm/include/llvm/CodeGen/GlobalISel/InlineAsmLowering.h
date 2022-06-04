@@ -55,7 +55,8 @@ public:
 
   /// Lower the specified input operand into the Ops vector.
   /// \p OpInfo is information about the operand being lowered
-  /// \p Ops is the vector to be filled with the lowered operands
+  /// \p Inst is inline asm instruction to modify.
+  /// \p MIRBuilder is the builder for building input instructions.
   /// \return True if the lowering succeeds, false otherwise.
   virtual bool lowerInputAsmOperandForConstraint(
       GISelAsmOperandInfo &OpInfo, MachineInstrBuilder &Inst,
@@ -63,8 +64,9 @@ public:
 
   /// Lower the specified output operand into the Ops vector.
   /// \p OpInfo is information about the operand being lowered
-  /// \p Ops is the vector to be filled with the lowered operands
-  /// \p ResRegs is the result registers, drop the ones that are used
+  /// \p Inst is inline asm instruction to modify.
+  /// \p MIRBuilder is the builder for building output instructions.
+  /// \p ResRegs is the result registers, drop the ones that are used.
   /// \return True if the lowering succeeds, false otherwise.
   virtual bool lowerOutputAsmOperandForConstraint(
       GISelAsmOperandInfo &OpInfo, MachineInstrBuilder &Inst,

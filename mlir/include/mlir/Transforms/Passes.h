@@ -87,6 +87,16 @@ std::unique_ptr<Pass> createSCCPPass();
 /// pass may *only* be scheduled on an operation that defines a SymbolTable.
 std::unique_ptr<Pass> createSymbolDCEPass();
 
+/// Creates a pass which marks top-level symbol operations as `private` unless
+/// listed in `excludeSymbols`.
+std::unique_ptr<Pass>
+createSymbolPrivatizePass(ArrayRef<std::string> excludeSymbols = {});
+
+/// Creates a pass that recursively sorts nested regions without SSA dominance
+/// topologically such that, as much as possible, users of values appear after
+/// their producers.
+std::unique_ptr<Pass> createTopologicalSortPass();
+
 //===----------------------------------------------------------------------===//
 // Registration
 //===----------------------------------------------------------------------===//

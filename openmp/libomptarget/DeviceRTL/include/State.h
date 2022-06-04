@@ -15,7 +15,7 @@
 #include "Debug.h"
 #include "Types.h"
 
-#pragma omp declare target
+#pragma omp begin declare target device_type(nohost)
 
 namespace _OMP {
 
@@ -124,20 +124,21 @@ private:
 
 template <typename VTy, typename Ty> struct ValueRAII {
   ValueRAII(VTy &V, Ty NewValue, Ty OldValue, bool Active, IdentTy *Ident)
-      : Ptr(Active ? V.lookup(/* IsReadonly */ false, Ident) : Val),
+      : Ptr(Active ? &V.lookup(/* IsReadonly */ false, Ident) : nullptr),
         Val(OldValue), Active(Active) {
     if (!Active)
       return;
-    ASSERT(Ptr == OldValue && "ValueRAII initialization with wrong old value!");
-    Ptr = NewValue;
+    ASSERT(*Ptr == OldValue &&
+           "ValueRAII initialization with wrong old value!");
+    *Ptr = NewValue;
   }
   ~ValueRAII() {
     if (Active)
-      Ptr = Val;
+      *Ptr = Val;
   }
 
 private:
-  Ty &Ptr;
+  Ty *Ptr;
   Ty Val;
   bool Active;
 };

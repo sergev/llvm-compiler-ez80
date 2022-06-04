@@ -62,6 +62,9 @@ def int_aarch64_frint64x
 
 def int_aarch64_hint : DefaultAttrsIntrinsic<[], [llvm_i32_ty]>;
 
+def int_aarch64_break : Intrinsic<[], [llvm_i32_ty],
+    [IntrNoMem, IntrHasSideEffects, IntrNoReturn, IntrCold, ImmArg<ArgIndex<0>>]>;
+
 //===----------------------------------------------------------------------===//
 // Data Barrier Instructions
 
@@ -895,6 +898,14 @@ def int_aarch64_settag_zero  : DefaultAttrsIntrinsic<[], [llvm_ptr_ty, llvm_i64_
 // Update allocation tags for 16-aligned, 16-sized memory region, and store a pair 8-byte values.
 def int_aarch64_stgp  : DefaultAttrsIntrinsic<[], [llvm_ptr_ty, llvm_i64_ty, llvm_i64_ty],
     [IntrWriteMem, IntrArgMemOnly, NoCapture<ArgIndex<0>>, WriteOnly<ArgIndex<0>>]>;
+}
+
+//===----------------------------------------------------------------------===//
+// Memory Operations (MOPS) Intrinsics
+let TargetPrefix = "aarch64" in {
+  // Sizes are chosen to correspond to the llvm.memset intrinsic: ptr, i8, i64
+  def int_aarch64_mops_memset_tag : DefaultAttrsIntrinsic<[llvm_ptr_ty], [llvm_ptr_ty, llvm_i8_ty, llvm_i64_ty],
+      [IntrWriteMem, IntrArgMemOnly, NoCapture<ArgIndex<0>>, WriteOnly<ArgIndex<0>>]>;
 }
 
 // Transactional Memory Extension (TME) Intrinsics

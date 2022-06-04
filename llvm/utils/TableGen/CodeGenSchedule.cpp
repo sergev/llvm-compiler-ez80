@@ -17,7 +17,6 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
@@ -1982,7 +1981,6 @@ void CodeGenSchedModels::collectProcResources() {
 
 void CodeGenSchedModels::checkCompleteness() {
   bool Complete = true;
-  bool HadCompleteModel = false;
   for (const CodeGenProcModel &ProcModel : procModels()) {
     const bool HasItineraries = ProcModel.hasItineraries();
     if (!ProcModel.ModelDef->getValueAsBit("CompleteModel"))
@@ -1994,7 +1992,7 @@ void CodeGenSchedModels::checkCompleteness() {
         continue;
       unsigned SCIdx = getSchedClassIdx(*Inst);
       if (!SCIdx) {
-        if (Inst->TheDef->isValueUnset("SchedRW") && !HadCompleteModel) {
+        if (Inst->TheDef->isValueUnset("SchedRW")) {
           PrintError(Inst->TheDef->getLoc(),
                      "No schedule information for instruction '" +
                          Inst->TheDef->getName() + "' in SchedMachineModel '" +
@@ -2022,7 +2020,6 @@ void CodeGenSchedModels::checkCompleteness() {
         Complete = false;
       }
     }
-    HadCompleteModel = true;
   }
   if (!Complete) {
     errs() << "\n\nIncomplete schedule models found.\n"

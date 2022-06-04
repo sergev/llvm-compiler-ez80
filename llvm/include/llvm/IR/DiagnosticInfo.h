@@ -15,14 +15,16 @@
 #define LLVM_IR_DIAGNOSTICINFO_H
 
 #include "llvm-c/Types.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/Support/CBindingWrapping.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TypeSize.h"
-#include "llvm/Support/YAMLTraits.h"
 #include <algorithm>
 #include <cstdint>
 #include <functional>
@@ -33,13 +35,15 @@ namespace llvm {
 
 // Forward declarations.
 class DiagnosticPrinter;
+class DIFile;
+class DISubprogram;
 class CallInst;
 class Function;
 class Instruction;
 class InstructionCost;
-class LLVMContext;
 class Module;
-class SMDiagnostic;
+class Type;
+class Value;
 
 /// Defines the different supported severity of a diagnostic.
 enum DiagnosticSeverity : char {
@@ -81,6 +85,7 @@ enum DiagnosticKind {
   DK_Unsupported,
   DK_SrcMgr,
   DK_DontCall,
+  DK_MisExpect,
   DK_FirstPluginKind // Must be last value to work with
                      // getNextAvailablePluginDiagnosticKind
 };
@@ -1026,6 +1031,25 @@ public:
   const Twine &getMessage() const { return Msg; }
 
   void print(DiagnosticPrinter &DP) const override;
+};
+
+/// Diagnostic information for MisExpect analysis.
+class DiagnosticInfoMisExpect : public DiagnosticInfoWithLocationBase {
+public:
+  DiagnosticInfoMisExpect(const Instruction *Inst, Twine &Msg);
+
+  /// \see DiagnosticInfo::print.
+  void print(DiagnosticPrinter &DP) const override;
+
+  static bool classof(const DiagnosticInfo *DI) {
+    return DI->getKind() == DK_MisExpect;
+  }
+
+  const Twine &getMsg() const { return Msg; }
+
+private:
+  /// Message to report.
+  const Twine &Msg;
 };
 
 static DiagnosticSeverity getDiagnosticSeverity(SourceMgr::DiagKind DK) {

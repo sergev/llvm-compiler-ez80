@@ -35,8 +35,6 @@
 #ifndef LLVM_ANALYSIS_INSTRUCTIONSIMPLIFY_H
 #define LLVM_ANALYSIS_INSTRUCTIONSIMPLIFY_H
 
-#include "llvm/IR/Instruction.h"
-#include "llvm/IR/Operator.h"
 #include "llvm/IR/PatternMatch.h"
 
 namespace llvm {
@@ -49,6 +47,7 @@ class CallBase;
 class DataLayout;
 class DominatorTree;
 class Function;
+class Instruction;
 struct LoopStandardAnalysisResults;
 class MDNode;
 class OptimizationRemarkEmitter;
@@ -301,6 +300,15 @@ Value *SimplifyBinOp(unsigned Opcode, Value *LHS, Value *RHS, FastMathFlags FMF,
 
 /// Given a callsite, fold the result or return null.
 Value *SimplifyCall(CallBase *Call, const SimplifyQuery &Q);
+
+/// Given a constrained FP intrinsic call, tries to compute its simplified
+/// version. Returns a simplified result or null.
+///
+/// This function provides an additional contract: it guarantees that if
+/// simplification succeeds that the intrinsic is side effect free. As a result,
+/// successful simplification can be used to delete the intrinsic not just
+/// replace its result.
+Value *SimplifyConstrainedFPCall(CallBase *Call, const SimplifyQuery &Q);
 
 /// Given an operand for a Freeze, see if we can fold the result.
 /// If not, this returns null.

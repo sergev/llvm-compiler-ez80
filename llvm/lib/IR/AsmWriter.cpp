@@ -612,6 +612,11 @@ void TypePrinting::print(Type *Ty, raw_ostream &OS) {
     OS << '>';
     return;
   }
+  case Type::DXILPointerTyID:
+    // DXIL pointer types are only handled by the DirectX backend. To avoid
+    // extra dependencies we just print the pointer's address here.
+    OS << "dxil-ptr (" << Ty << ")";
+    return;
   }
   llvm_unreachable("Invalid TypeID");
 }
@@ -641,7 +646,7 @@ void TypePrinting::printStructBody(StructType *STy, raw_ostream &OS) {
     OS << '>';
 }
 
-AbstractSlotTrackerStorage::~AbstractSlotTrackerStorage() {}
+AbstractSlotTrackerStorage::~AbstractSlotTrackerStorage() = default;
 
 namespace llvm {
 
@@ -1290,7 +1295,7 @@ struct AsmWriterContext {
   /// prints a Metadata as operand.
   virtual void onWriteMetadataAsOperand(const Metadata *) {}
 
-  virtual ~AsmWriterContext() {}
+  virtual ~AsmWriterContext() = default;
 };
 } // end anonymous namespace
 
@@ -2131,6 +2136,7 @@ static void writeDISubprogram(raw_ostream &Out, const DISubprogram *N,
   Printer.printMetadata("retainedNodes", N->getRawRetainedNodes());
   Printer.printMetadata("thrownTypes", N->getRawThrownTypes());
   Printer.printMetadata("annotations", N->getRawAnnotations());
+  Printer.printString("targetFuncName", N->getTargetFuncName());
   Out << ")";
 }
 

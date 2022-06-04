@@ -119,6 +119,61 @@ template <typename ConstT> inline ConstantMatch<ConstT> m_ICst(ConstT &Cst) {
   return {Cst};
 }
 
+template <typename ConstT>
+inline Optional<ConstT> matchConstantSplat(Register,
+                                           const MachineRegisterInfo &);
+
+template <>
+inline Optional<APInt> matchConstantSplat(Register Reg,
+                                          const MachineRegisterInfo &MRI) {
+  return getIConstantSplatVal(Reg, MRI);
+}
+
+template <>
+inline Optional<int64_t> matchConstantSplat(Register Reg,
+                                            const MachineRegisterInfo &MRI) {
+  return getIConstantSplatSExtVal(Reg, MRI);
+}
+
+template <typename ConstT> struct ICstOrSplatMatch {
+  ConstT &CR;
+  ICstOrSplatMatch(ConstT &C) : CR(C) {}
+  bool match(const MachineRegisterInfo &MRI, Register Reg) {
+    if (auto MaybeCst = matchConstant<ConstT>(Reg, MRI)) {
+      CR = *MaybeCst;
+      return true;
+    }
+
+    if (auto MaybeCstSplat = matchConstantSplat<ConstT>(Reg, MRI)) {
+      CR = *MaybeCstSplat;
+      return true;
+    }
+
+    return false;
+  };
+};
+
+inline ICstOrSplatMatch<APInt> m_ICstOrSplat(APInt &Cst) {
+  return ICstOrSplatMatch<APInt>(Cst);
+}
+
+inline ICstOrSplatMatch<int64_t> m_ICstOrSplat(int64_t &Cst) {
+  return ICstOrSplatMatch<int64_t>(Cst);
+}
+
+struct GCstAndRegMatch {
+  Optional<ValueAndVReg> &ValReg;
+  GCstAndRegMatch(Optional<ValueAndVReg> &ValReg) : ValReg(ValReg) {}
+  bool match(const MachineRegisterInfo &MRI, Register Reg) {
+    ValReg = getIConstantVRegValWithLookThrough(Reg, MRI);
+    return ValReg ? true : false;
+  }
+};
+
+inline GCstAndRegMatch m_GCst(Optional<ValueAndVReg> &ValReg) {
+  return GCstAndRegMatch(ValReg);
+}
+
 struct GFCstAndRegMatch {
   Optional<FPValueAndVReg> &FPValReg;
   GFCstAndRegMatch(Optional<FPValueAndVReg> &FPValReg) : FPValReg(FPValReg) {}

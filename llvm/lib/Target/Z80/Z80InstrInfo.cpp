@@ -954,7 +954,7 @@ void Z80InstrInfo::rewriteFrameIndex(MachineInstr &MI, unsigned FIOperandNum,
     MI.getOperand(FIOperandNum).ChangeToRegister(BaseReg, false);
     if (!NewOffset && (Opc == Z80::PEA24o || Opc == Z80::PEA16o)) {
       MI.setDesc(get(Opc == Z80::PEA24o ? Z80::PUSH24r : Z80::PUSH16r));
-      MI.RemoveOperand(FIOperandNum + 1);
+      MI.removeOperand(FIOperandNum + 1);
       return;
     }
     MI.getOperand(FIOperandNum + 1).ChangeToImmediate(NewOffset);
@@ -1054,7 +1054,7 @@ void Z80InstrInfo::rewriteFrameIndex(MachineInstr &MI, unsigned FIOperandNum,
       return;
     }
     MI.setDesc(get(Opc));
-    MI.RemoveOperand(FIOperandNum + 1);
+    MI.removeOperand(FIOperandNum + 1);
     return;
   }
 
@@ -1670,7 +1670,7 @@ bool Z80InstrInfo::optimizeCompareInstr(MachineInstr &CmpInstr, Register SrcReg,
     if (CpOpc == Z80::OR8ar)
       CmpInstr.getOperand(0).ChangeToRegister(Z80::A, false);
     else
-      CmpInstr.RemoveOperand(DeadDef);
+      CmpInstr.removeOperand(DeadDef);
   }
 
   // Get the unique definition of SrcReg.

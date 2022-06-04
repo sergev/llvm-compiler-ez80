@@ -13,6 +13,7 @@
 
 #include "llvm-c/Core.h"
 #include "llvm/IR/Attributes.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -27,6 +28,7 @@
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/InitializePasses.h"
+#include "llvm/PassRegistry.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
@@ -111,6 +113,10 @@ LLVMBool LLVMContextShouldDiscardValueNames(LLVMContextRef C) {
 
 void LLVMContextSetDiscardValueNames(LLVMContextRef C, LLVMBool Discard) {
   unwrap(C)->setDiscardValueNames(Discard);
+}
+
+void LLVMContextSetOpaquePointers(LLVMContextRef C, LLVMBool OpaquePointers) {
+  unwrap(C)->setOpaquePointers(OpaquePointers);
 }
 
 void LLVMContextDispose(LLVMContextRef C) {
@@ -532,6 +538,8 @@ LLVMTypeKind LLVMGetTypeKind(LLVMTypeRef Ty) {
     return LLVMTokenTypeKind;
   case Type::ScalableVectorTyID:
     return LLVMScalableVectorTypeKind;
+  case Type::DXILPointerTyID:
+    llvm_unreachable("DXIL pointers are unsupported via the C API");
   }
   llvm_unreachable("Unhandled TypeID.");
 }
@@ -784,6 +792,10 @@ LLVMTypeRef LLVMPointerType(LLVMTypeRef ElementType, unsigned AddressSpace) {
   return wrap(PointerType::get(unwrap(ElementType), AddressSpace));
 }
 
+LLVMBool LLVMPointerTypeIsOpaque(LLVMTypeRef Ty) {
+  return unwrap(Ty)->isOpaquePointerTy();
+}
+
 LLVMTypeRef LLVMVectorType(LLVMTypeRef ElementType, unsigned ElementCount) {
   return wrap(FixedVectorType::get(unwrap(ElementType), ElementCount));
 }
@@ -796,7 +808,7 @@ LLVMTypeRef LLVMScalableVectorType(LLVMTypeRef ElementType,
 LLVMTypeRef LLVMGetElementType(LLVMTypeRef WrappedTy) {
   auto *Ty = unwrap<Type>(WrappedTy);
   if (auto *PTy = dyn_cast<PointerType>(Ty))
-    return wrap(PTy->getPointerElementType());
+    return wrap(PTy->getNonOpaquePointerElementType());
   if (auto *ATy = dyn_cast<ArrayType>(Ty))
     return wrap(ATy->getElementType());
   return wrap(cast<VectorType>(Ty)->getElementType());
@@ -819,6 +831,10 @@ unsigned LLVMGetVectorSize(LLVMTypeRef VectorTy) {
 }
 
 /*--.. Operations on other types ...........................................--*/
+
+LLVMTypeRef LLVMPointerTypeInContext(LLVMContextRef C, unsigned AddressSpace) {
+  return wrap(PointerType::get(*unwrap(C), AddressSpace));
+}
 
 LLVMTypeRef LLVMVoidTypeInContext(LLVMContextRef C)  {
   return wrap(Type::getVoidTy(*unwrap(C)));
@@ -3915,6 +3931,12 @@ LLVMValueRef LLVMBuildIntCast(LLVMBuilderRef B, LLVMValueRef Val,
 LLVMValueRef LLVMBuildFPCast(LLVMBuilderRef B, LLVMValueRef Val,
                              LLVMTypeRef DestTy, const char *Name) {
   return wrap(unwrap(B)->CreateFPCast(unwrap(Val), unwrap(DestTy), Name));
+}
+
+LLVMOpcode LLVMGetCastOpcode(LLVMValueRef Src, LLVMBool SrcIsSigned,
+                             LLVMTypeRef DestTy, LLVMBool DestIsSigned) {
+  return map_to_llvmopcode(CastInst::getCastOpcode(
+      unwrap(Src), SrcIsSigned, unwrap(DestTy), DestIsSigned));
 }
 
 /*--.. Comparisons .........................................................--*/

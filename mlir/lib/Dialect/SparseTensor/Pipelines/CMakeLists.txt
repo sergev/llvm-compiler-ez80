@@ -5,17 +5,23 @@ add_mlir_dialect_library(MLIRSparseTensorPipelines
   ${MLIR_MAIN_INCLUDE_DIR}/mlir/Dialect/SparseTensor
 
   LINK_LIBS PUBLIC
+  MLIRArithmeticTransforms
   MLIRAffineToStandard
   MLIRBufferizationTransforms
+  MLIRComplexToLLVM
+  MLIRComplexToLibm
+  MLIRComplexToStandard
+  MLIRFuncTransforms
   MLIRLinalgTransforms
+  MLIRMathToLibm
   MLIRMathToLLVM
   MLIRMemRefToLLVM
   MLIRPass
   MLIRReconcileUnrealizedCasts
-  MLIRSCFToStandard
+  MLIRSCFToControlFlow
   MLIRSparseTensor
   MLIRSparseTensorTransforms
-  MLIRStandardOpsTransforms
   MLIRTensorTransforms
   MLIRVectorToLLVM
+  MLIRVectorTransforms
 )

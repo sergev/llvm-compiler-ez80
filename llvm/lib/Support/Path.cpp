@@ -22,7 +22,6 @@
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Signals.h"
 #include <cctype>
-#include <cstring>
 
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
@@ -761,11 +760,15 @@ bool remove_dots(SmallVectorImpl<char> &the_path, bool remove_dot_dot,
     }
   }
 
+  SmallString<256> buffer = root;
+  // "root" could be "/", which may need to be translated into "\".
+  make_preferred(buffer, style);
+  needs_change |= root != buffer;
+
   // Avoid rewriting the path unless we have to.
   if (!needs_change)
     return false;
 
-  SmallString<256> buffer = root;
   if (!components.empty()) {
     buffer += components[0];
     for (StringRef C : makeArrayRef(components).drop_front()) {

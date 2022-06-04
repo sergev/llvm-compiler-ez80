@@ -22,12 +22,11 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/TargetFolder.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilderFolder.h"
-#include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
 
 namespace llvm {
+class Constant;
 
 /// InstSimplifyFolder - Use InstructionSimplify to fold operations to existing
 /// values. Also applies target-specific constant folding when not using
@@ -71,6 +70,16 @@ public:
 
   Value *FoldSelect(Value *C, Value *True, Value *False) const override {
     return SimplifySelectInst(C, True, False, SQ);
+  }
+
+  Value *FoldExtractValue(Value *Agg,
+                          ArrayRef<unsigned> IdxList) const override {
+    return SimplifyExtractValueInst(Agg, IdxList, SQ);
+  };
+
+  Value *FoldInsertValue(Value *Agg, Value *Val,
+                         ArrayRef<unsigned> IdxList) const override {
+    return SimplifyInsertValueInst(Agg, Val, IdxList, SQ);
   }
 
   //===--------------------------------------------------------------------===//
@@ -237,16 +246,6 @@ public:
   Value *CreateShuffleVector(Constant *V1, Constant *V2,
                              ArrayRef<int> Mask) const override {
     return ConstFolder.CreateShuffleVector(V1, V2, Mask);
-  }
-
-  Value *CreateExtractValue(Constant *Agg,
-                            ArrayRef<unsigned> IdxList) const override {
-    return ConstFolder.CreateExtractValue(Agg, IdxList);
-  }
-
-  Value *CreateInsertValue(Constant *Agg, Constant *Val,
-                           ArrayRef<unsigned> IdxList) const override {
-    return ConstFolder.CreateInsertValue(Agg, Val, IdxList);
   }
 };
 

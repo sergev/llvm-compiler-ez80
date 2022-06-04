@@ -26,15 +26,15 @@
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instruction.h"
-#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
+#include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Transforms/Instrumentation.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
@@ -254,7 +254,7 @@ public:
 
 } // end anonymous namespace
 
-MemProfilerPass::MemProfilerPass() {}
+MemProfilerPass::MemProfilerPass() = default;
 
 PreservedAnalyses MemProfilerPass::run(Function &F,
                                        AnalysisManager<Function> &AM) {
@@ -265,7 +265,7 @@ PreservedAnalyses MemProfilerPass::run(Function &F,
   return PreservedAnalyses::all();
 }
 
-ModuleMemProfilerPass::ModuleMemProfilerPass() {}
+ModuleMemProfilerPass::ModuleMemProfilerPass() = default;
 
 PreservedAnalyses ModuleMemProfilerPass::run(Module &M,
                                              AnalysisManager<Module> &AM) {
@@ -408,6 +408,25 @@ MemProfiler::isInterestingMemoryAccess(Instruction *I) const {
   // function and it makes no sense to track them as memory.
   if (Access.Addr->isSwiftError())
     return None;
+
+  // Peel off GEPs and BitCasts.
+  auto *Addr = Access.Addr->stripInBoundsOffsets();
+
+  if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Addr)) {
+    // Do not instrument PGO counter updates.
+    if (GV->hasSection()) {
+      StringRef SectionName = GV->getSection();
+      // Check if the global is in the PGO counters section.
+      auto OF = Triple(I->getModule()->getTargetTriple()).getObjectFormat();
+      if (SectionName.endswith(
+              getInstrProfSectionName(IPSK_cnts, OF, /*AddSegmentInfo=*/false)))
+        return None;
+    }
+
+    // Do not instrument accesses to LLVM internal variables.
+    if (GV->getName().startswith("__llvm"))
+      return None;
+  }
 
   const DataLayout &DL = I->getModule()->getDataLayout();
   Access.TypeSize = DL.getTypeStoreSizeInBits(Access.AccessTy);
@@ -614,8 +633,6 @@ bool MemProfiler::instrumentFunction(Function &F) {
 
   initializeCallbacks(*F.getParent());
 
-  FunctionModified |= insertDynamicShadowAtFunctionEntry(F);
-
   SmallVector<Instruction *, 16> ToInstrument;
 
   // Fill the set of memory operations to instrument.
@@ -625,6 +642,15 @@ bool MemProfiler::instrumentFunction(Function &F) {
         ToInstrument.push_back(&Inst);
     }
   }
+
+  if (ToInstrument.empty()) {
+    LLVM_DEBUG(dbgs() << "MEMPROF done instrumenting: " << FunctionModified
+                      << " " << F << "\n");
+
+    return FunctionModified;
+  }
+
+  FunctionModified |= insertDynamicShadowAtFunctionEntry(F);
 
   int NumInstrumented = 0;
   for (auto *Inst : ToInstrument) {

@@ -12,15 +12,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/GlobalISel/InlineAsmLowering.h"
-#include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
-#include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetLowering.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 
 #define DEBUG_TYPE "inline-asm-lowering"
@@ -137,6 +132,7 @@ static unsigned getConstraintGenerality(TargetLowering::ConstraintType CT) {
   case TargetLowering::C_RegisterClass:
     return 2;
   case TargetLowering::C_Memory:
+  case TargetLowering::C_Address:
     return 3;
   }
   llvm_unreachable("Invalid constraint type");
@@ -297,7 +293,7 @@ bool InlineAsmLowering::lowerInlineAsm(
       // If this is an indirect operand, the operand is a pointer to the
       // accessed type.
       if (OpInfo.isIndirect) {
-        OpTy = Call.getAttributes().getParamElementType(ArgNo);
+        OpTy = Call.getParamElementType(ArgNo);
         assert(OpTy && "Indirect operand must have elementtype attribute");
       }
 
@@ -424,14 +420,27 @@ bool InlineAsmLowering::lowerInlineAsm(
         return false;
       }
 
-      for (Register Reg : OpInfo.Regs) {
-        Inst.addReg(Reg,
-                    RegState::Define | getImplRegState(Reg.isPhysical()) |
-                    (OpInfo.isEarlyClobber ? RegState::EarlyClobber : 0));
-        if (Reg.isPhysical())
-          MIRBuilder.buildCopy(ResRegs.front(), Reg);
-        else
-          MIRBuilder.buildAnyExtOrTrunc(ResRegs.front(), Reg);
+      for (Register SrcReg : OpInfo.Regs) {
+        Inst.addReg(SrcReg,
+                    RegState::Define | getImplRegState(SrcReg.isPhysical()) |
+                        (OpInfo.isEarlyClobber ? RegState::EarlyClobber : 0));
+
+        unsigned SrcSize = TRI->getRegSizeInBits(SrcReg, *MRI);
+        LLT ResTy = MRI->getType(ResRegs.front());
+        if (ResTy.isScalar() && ResTy.getSizeInBits() != SrcSize) {
+          // First copy the non-typed virtual register into a generic virtual
+          // register
+          Register TmpReg =
+              MIRBuilder.buildCopy(LLT::scalar(SrcSize), SrcReg).getReg(0);
+          // Need to extend/truncate the result of the register
+          MIRBuilder.buildAnyExtOrTrunc(ResRegs.front(), TmpReg);
+        } else if (ResTy.getSizeInBits() == SrcSize) {
+          MIRBuilder.buildCopy(ResRegs.front(), SrcReg);
+        } else {
+          LLVM_DEBUG(dbgs() << "Unhandled output operand with "
+                               "mismatched register size\n");
+          return false;
+        }
         ResRegs = ResRegs.drop_front();
       }
       break;

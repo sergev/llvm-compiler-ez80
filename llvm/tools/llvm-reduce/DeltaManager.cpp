@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "DeltaManager.h"
+#include "ReducerWorkItem.h"
 #include "TestRunner.h"
 #include "deltas/Delta.h"
 #include "deltas/ReduceAliases.h"
@@ -24,6 +25,8 @@
 #include "deltas/ReduceGlobalValues.h"
 #include "deltas/ReduceGlobalVarInitializers.h"
 #include "deltas/ReduceGlobalVars.h"
+#include "deltas/ReduceIRReferences.h"
+#include "deltas/ReduceInstructionFlagsMIR.h"
 #include "deltas/ReduceInstructions.h"
 #include "deltas/ReduceInstructionsMIR.h"
 #include "deltas/ReduceMetadata.h"
@@ -33,14 +36,17 @@
 #include "deltas/ReduceOperandsSkip.h"
 #include "deltas/ReduceOperandsToArgs.h"
 #include "deltas/ReduceSpecialGlobals.h"
+#include "deltas/ReduceVirtualRegisters.h"
 #include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
 
+extern cl::OptionCategory LLVMReduceOptions;
 static cl::opt<std::string>
     DeltaPasses("delta-passes",
                 cl::desc("Delta passes to run, separated by commas. By "
-                         "default, run all delta passes."));
+                         "default, run all delta passes."),
+                cl::cat(LLVMReduceOptions));
 
 #define DELTA_PASSES                                                           \
   DELTA_PASS("special-globals", reduceSpecialGlobalsDeltaPass)                 \
@@ -65,7 +71,13 @@ static cl::opt<std::string>
   DELTA_PASS("module-data", reduceModuleDataDeltaPass)
 
 #define DELTA_PASSES_MIR                                                       \
-  DELTA_PASS("instructions", reduceInstructionsMIRDeltaPass)
+  DELTA_PASS("instructions", reduceInstructionsMIRDeltaPass)                   \
+  DELTA_PASS("ir-instruction-references",                                      \
+             reduceIRInstructionReferencesDeltaPass)                           \
+  DELTA_PASS("ir-block-references", reduceIRBlockReferencesDeltaPass)          \
+  DELTA_PASS("ir-function-references", reduceIRFunctionReferencesDeltaPass)    \
+  DELTA_PASS("instruction-flags", reduceInstructionFlagsMIRDeltaPass)          \
+  DELTA_PASS("register-hints", reduceVirtualRegisterHintsDeltaPass)
 
 static void runAllDeltaPasses(TestRunner &Tester) {
 #define DELTA_PASS(NAME, FUNC) FUNC(Tester);
@@ -103,18 +115,8 @@ void llvm::printDeltaPasses(raw_ostream &OS) {
 #undef DELTA_PASS
 }
 
-// FIXME: We might want to use a different metric than "number of
-// bytes in serialized IR" to detect non-progress of the main delta
-// loop
-static int getIRSize(TestRunner &Tester) {
-  std::string Str;
-  raw_string_ostream SS(Str);
-  Tester.getProgram().print(SS, /*AnnotationWriter=*/nullptr);
-  return Str.length();
-}
-
 void llvm::runDeltaPasses(TestRunner &Tester, int MaxPassIterations) {
-  int OldSize = getIRSize(Tester);
+  uint64_t OldComplexity = Tester.getProgram().getComplexityScore();
   for (int Iter = 0; Iter < MaxPassIterations; ++Iter) {
     if (DeltaPasses.empty()) {
       runAllDeltaPasses(Tester);
@@ -126,9 +128,9 @@ void llvm::runDeltaPasses(TestRunner &Tester, int MaxPassIterations) {
         Passes = Split.second;
       }
     }
-    int NewSize = getIRSize(Tester);
-    if (NewSize >= OldSize)
+    uint64_t NewComplexity = Tester.getProgram().getComplexityScore();
+    if (NewComplexity >= OldComplexity)
       break;
-    OldSize = NewSize;
+    OldComplexity = NewComplexity;
   }
 }

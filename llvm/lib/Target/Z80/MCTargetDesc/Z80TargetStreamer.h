@@ -21,6 +21,7 @@
 
 namespace llvm {
 class formatted_raw_ostream;
+class MCAsmInfo;
 
 class Z80TargetStreamer : public MCTargetStreamer {
 public:

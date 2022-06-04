@@ -34,6 +34,7 @@
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
@@ -253,6 +254,8 @@ public:
   void emitFunctionEntryLabel() override;
 
   void emitFunctionBodyEnd() override;
+
+  void emitPGORefs();
 
   void emitEndOfAsmFile(Module &) override;
 
@@ -1895,10 +1898,15 @@ void PPCAIXAsmPrinter::emitLinkage(const GlobalValue *GV,
 
   MCSymbolAttr VisibilityAttr = MCSA_Invalid;
   if (!TM.getIgnoreXCOFFVisibility()) {
+    if (GV->hasDLLExportStorageClass() && !GV->hasDefaultVisibility())
+      report_fatal_error(
+          "Cannot not be both dllexport and non-default visibility");
     switch (GV->getVisibility()) {
 
-    // TODO: "exported" and "internal" Visibility needs to go here.
+    // TODO: "internal" Visibility needs to go here.
     case GlobalValue::DefaultVisibility:
+      if (GV->hasDLLExportStorageClass())
+        VisibilityAttr = MAI->getExportedVisibilityAttr();
       break;
     case GlobalValue::HiddenVisibility:
       VisibilityAttr = MAI->getHiddenVisibilityAttr();
@@ -2475,11 +2483,38 @@ void PPCAIXAsmPrinter::emitFunctionEntryLabel() {
       });
 }
 
+void PPCAIXAsmPrinter::emitPGORefs() {
+  if (OutContext.hasXCOFFSection(
+          "__llvm_prf_cnts",
+          XCOFF::CsectProperties(XCOFF::XMC_RW, XCOFF::XTY_SD))) {
+    MCSection *CntsSection = OutContext.getXCOFFSection(
+        "__llvm_prf_cnts", SectionKind::getData(),
+        XCOFF::CsectProperties(XCOFF::XMC_RW, XCOFF::XTY_SD),
+        /*MultiSymbolsAllowed*/ true);
+
+    OutStreamer->SwitchSection(CntsSection);
+    if (OutContext.hasXCOFFSection(
+            "__llvm_prf_data",
+            XCOFF::CsectProperties(XCOFF::XMC_RW, XCOFF::XTY_SD)))
+      OutStreamer->emitXCOFFRefDirective("__llvm_prf_data[RW]");
+    if (OutContext.hasXCOFFSection(
+            "__llvm_prf_names",
+            XCOFF::CsectProperties(XCOFF::XMC_RO, XCOFF::XTY_SD)))
+      OutStreamer->emitXCOFFRefDirective("__llvm_prf_names[RO]");
+    if (OutContext.hasXCOFFSection(
+            "__llvm_prf_vnds",
+            XCOFF::CsectProperties(XCOFF::XMC_RW, XCOFF::XTY_SD)))
+      OutStreamer->emitXCOFFRefDirective("__llvm_prf_vnds[RW]");
+  }
+}
+
 void PPCAIXAsmPrinter::emitEndOfAsmFile(Module &M) {
   // If there are no functions and there are no toc-data definitions in this
   // module, we will never need to reference the TOC base.
   if (M.empty() && TOCDataGlobalVars.empty())
     return;
+
+  emitPGORefs();
 
   // Switch to section to emit TOC base.
   OutStreamer->SwitchSection(getObjFileLowering().getTOCBaseSection());

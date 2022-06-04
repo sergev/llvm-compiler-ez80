@@ -395,7 +395,7 @@ bool Z80MachineLateOptimization::runOnMachineFunction(MachineFunction &MF) {
           LLVM_DEBUG(dbgs() << "Replacing: "; MIB->dump();
                      dbgs() << "     With: ");
           MIB->setDesc(TII.get(Opc));
-          MIB->RemoveOperand(1);
+          MIB->removeOperand(1);
           MIB.addReg(Reg, getKillRegState(reuse(Reg)));
           MIB->addImplicitDefUseOperands(MF);
           break;
